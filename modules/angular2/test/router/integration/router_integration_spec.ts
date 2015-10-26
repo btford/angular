@@ -157,26 +157,27 @@ export function main() {
                });
          }));
 
-      describe('custom app base ref', () => {
-        beforeEachBindings(() => { return [provide(APP_BASE_HREF, {useValue: '/my/app'})]; });
-        it('should bootstrap',
-           inject([AsyncTestCompleter, TestComponentBuilder],
-                  (async, tcb: TestComponentBuilder) => {
+      // TODO(btford): mock out level lower than LocationStrategy once that level exists
+      // describe('custom app base ref', () => {
+      //   beforeEachBindings(() => { return [provide(APP_BASE_HREF, {useValue: '/my/app'})]; });
+      //   it('should bootstrap',
+      //      inject([AsyncTestCompleter, TestComponentBuilder],
+      //             (async, tcb: TestComponentBuilder) => {
 
-                    tcb.createAsync(HierarchyAppCmp)
-                        .then((rootTC) => {
-                          var router = rootTC.debugElement.componentInstance.router;
-                          router.subscribe((_) => {
-                            expect(rootTC.debugElement.nativeElement)
-                                .toHaveText('root { parent { hello } }');
-                            expect(rootTC.debugElement.componentInstance.location.path())
-                                .toEqual('/my/app/parent/child');
-                            async.done();
-                          });
-                          router.navigateByUrl('/parent/child');
-                        });
-                  }));
-      });
+      //               tcb.createAsync(HierarchyAppCmp)
+      //                   .then((rootTC) => {
+      //                     var router = rootTC.debugElement.componentInstance.router;
+      //                     router.subscribe((_) => {
+      //                       expect(rootTC.debugElement.nativeElement)
+      //                           .toHaveText('root { parent { hello } }');
+      //                       expect(rootTC.debugElement.componentInstance.location.path())
+      //                           .toEqual('/my/app/parent/child');
+      //                       async.done();
+      //                     });
+      //                     router.navigateByUrl('/parent/child');
+      //                   });
+      //             }));
+      // });
     });
     // TODO: add a test in which the child component has bindings
 

@@ -118,7 +118,8 @@ export class Location {
     if (!url.startsWith('/')) {
       url = '/' + url;
     }
-    return stripTrailingSlash(_addBaseHref(this._baseHref, url));
+    return this.platformStrategy.prepareExternalUrl(
+        stripTrailingSlash(_addBaseHref(this._baseHref, url)));
   }
 
   /**
@@ -126,8 +127,7 @@ export class Location {
    * new item onto the platform's history.
    */
   go(path: string, query: string = ''): void {
-    var absolutePath = this.normalizeAbsolutely(path);
-    this.platformStrategy.pushState(null, '', absolutePath, query);
+    this.platformStrategy.pushState(null, '', path, query);
   }
 
   /**
