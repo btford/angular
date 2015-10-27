@@ -9,6 +9,10 @@ export function hasLifecycleHook(e: RouteLifecycleHook, type): boolean {
 
 export function getCanActivateHook(type): Function {
   var annotations = reflector.annotations(type);
+
+  // loop over each static method on the type
+  // look for some token attached by CanActivate
+
   for (let i = 0; i < annotations.length; i += 1) {
     let annotation = annotations[i];
     if (annotation instanceof CanActivate) {

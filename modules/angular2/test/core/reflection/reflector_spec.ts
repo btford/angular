@@ -150,6 +150,11 @@ export function main() {
         expect(p).toEqual([[AType, paramDecorator('a')], [AType, paramDecorator('b')]]);
       });
 
+      iit("should return an array of parameters for a function", () => {
+        var p = reflector.parameters(TestObjWithStaticMethod.method);
+        expect(p).toEqual([[AType, paramDecorator('a')], [AType, paramDecorator('b')]]);
+      });
+
       it("should work for a class without annotations", () => {
         var p = reflector.parameters(ClassWithoutDecorators);
         expect(p.length).toEqual(2);
@@ -271,6 +276,13 @@ export function main() {
   });
 }
 
+function DummyMethodDecorator(): any {}
+
+class TestObjWithStaticMethod {
+  @DummyMethodDecorator()
+  static method(a1: Interface, a2: Interface2) {
+  }
+}
 
 class TestObjWith00Args {
   args: any[];

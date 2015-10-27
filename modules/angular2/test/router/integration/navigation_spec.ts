@@ -51,9 +51,10 @@ export function main() {
       provide(Location, {useClass: SpyLocation}),
       provide(Router,
               {
-                useFactory:
-                    (registry, location) => { return new RootRouter(registry, location, MyComp); },
-                deps: [RouteRegistry, Location]
+                useFactory: (registry, location, injector) => {
+                  return new RootRouter(registry, location, MyComp, injector);
+                },
+                deps: [RouteRegistry, Location, Injector]
               })
     ]);
 

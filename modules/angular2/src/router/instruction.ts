@@ -196,3 +196,6 @@ export class ComponentInstruction_ extends ComponentInstruction {
   get terminal() { return this._recognizer.terminal; }
   routeData(): Object { return this._recognizer.handler.data; }
 }
+
+export class NextComponent extends ComponentInstruction_ {}
+export class PreviousComponent extends ComponentInstruction_ {}

@@ -25,6 +25,7 @@ import {RouteConfig, AsyncRoute, Route} from 'angular2/src/router/route_config_d
 import {DirectiveResolver} from 'angular2/src/core/linker/directive_resolver';
 
 import {provide} from 'angular2/core';
+import {Injector} from 'angular2/angular2';
 
 export function main() {
   describe('Router', () => {
@@ -36,9 +37,10 @@ export function main() {
       provide(Location, {useClass: SpyLocation}),
       provide(Router,
               {
-                useFactory:
-                    (registry, location) => { return new RootRouter(registry, location, AppCmp); },
-                deps: [RouteRegistry, Location]
+                useFactory: (registry, location, injector) => {
+                  return new RootRouter(registry, location, AppCmp, injector);
+                },
+                deps: [RouteRegistry, Location, Injector]
               })
     ]);
 

@@ -21,7 +21,7 @@ import {NumberWrapper} from 'angular2/src/core/facade/lang';
 import {PromiseWrapper} from 'angular2/src/core/facade/async';
 import {ListWrapper} from 'angular2/src/core/facade/collection';
 
-import {provide, Component, DirectiveResolver, View} from 'angular2/core';
+import {provide, Injector, Component, DirectiveResolver, View} from 'angular2/core';
 
 import {SpyLocation} from 'angular2/src/mock/location_mock';
 import {
@@ -52,9 +52,10 @@ export function main() {
       provide(Location, {useClass: SpyLocation}),
       provide(Router,
               {
-                useFactory:
-                    (registry, location) => { return new RootRouter(registry, location, MyComp); },
-                deps: [RouteRegistry, Location]
+                useFactory: (registry, location, injector) => {
+                  return new RootRouter(registry, location, MyComp, injector);
+                },
+                deps: [RouteRegistry, Location, Injector]
               })
     ]);
 

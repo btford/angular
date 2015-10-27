@@ -46,7 +46,11 @@ import {
   CanReuse
 } from 'angular2/src/router/interfaces';
 import {CanActivate} from 'angular2/src/router/lifecycle_annotations';
-import {ComponentInstruction} from 'angular2/src/router/instruction';
+import {
+  ComponentInstruction,
+  NextComponent,
+  PreviousComponent
+} from 'angular2/src/router/instruction';
 import {DirectiveResolver} from 'angular2/src/core/linker/directive_resolver';
 
 var cmpInstanceCount;
@@ -67,9 +71,10 @@ export function main() {
       provide(Location, {useClass: SpyLocation}),
       provide(Router,
               {
-                useFactory:
-                    (registry, location) => { return new RootRouter(registry, location, MyComp); },
-                deps: [RouteRegistry, Location]
+                useFactory: (registry, location, injector) => {
+                  return new RootRouter(registry, location, MyComp, injector);
+                },
+                deps: [RouteRegistry, Location, Injector]
               })
     ]);
 
@@ -207,24 +212,24 @@ export function main() {
        }));
 
 
-    it('should navigate when canActivate returns true', inject([AsyncTestCompleter], (async) => {
-         compile()
-             .then((_) => rtr.config([new Route({path: '/...', component: LifecycleCmp})]))
-             .then((_) => {
-               ObservableWrapper.subscribe<string>(eventBus, (ev) => {
-                 if (ev.startsWith('canActivate')) {
-                   completer.resolve(true);
-                 }
-               });
-               rtr.navigateByUrl('/can-activate/a')
-                   .then((_) => {
-                     rootTC.detectChanges();
-                     expect(rootTC.debugElement.nativeElement).toHaveText('canActivate {A}');
-                     expect(log).toEqual(['canActivate: null -> /can-activate']);
-                     async.done();
-                   });
-             });
-       }));
+    iit('should navigate when canActivate returns true', inject([AsyncTestCompleter], (async) => {
+          compile()
+              .then((_) => rtr.config([new Route({path: '/...', component: LifecycleCmp})]))
+              .then((_) => {
+                ObservableWrapper.subscribe<string>(eventBus, (ev) => {
+                  if (ev.startsWith('canActivate')) {
+                    completer.resolve(true);
+                  }
+                });
+                rtr.navigateByUrl('/can-activate/a')
+                    .then((_) => {
+                      rootTC.detectChanges();
+                      expect(rootTC.debugElement.nativeElement).toHaveText('canActivate {A}');
+                      expect(log).toEqual(['canActivate: null -> /can-activate']);
+                      async.done();
+                    });
+              });
+        }));
 
     it('should not navigate when canActivate returns false',
        inject([AsyncTestCompleter], (async) => {
@@ -476,7 +481,8 @@ class NeverReuseCmp implements OnReuse, CanReuse {
 @RouteConfig([new Route({path: '/a', component: A}), new Route({path: '/b', component: B})])
 @CanActivate(CanActivateCmp.canActivate)
 class CanActivateCmp {
-  static canActivate(next: ComponentInstruction, prev: ComponentInstruction): Promise<boolean> {
+  @Inject('')
+  static canActivate(next: NextComponent, prev: PreviousComponent): Promise<boolean> {
     completer = PromiseWrapper.completer();
     logHook('canActivate', next, prev);
     return completer.promise;

@@ -17,6 +17,8 @@ import {BaseException, WrappedException} from 'angular2/src/core/facade/exceptio
 import {RouteRegistry} from './route_registry';
 import {
   ComponentInstruction,
+  NextComponent,
+  PreviousComponent,
   Instruction,
   stringifyInstruction,
   stringifyInstructionPath,
@@ -26,6 +28,8 @@ import {RouterOutlet} from './router_outlet';
 import {Location} from './location';
 import {getCanActivateHook} from './route_lifecycle_reflector';
 import {RouteDefinition} from './route_config_impl';
+import {Injector, provide} from 'angular2/core';
+import {reflector} from 'angular2/src/core/reflection/reflection';
 
 let _resolveToTrue = PromiseWrapper.resolve(true);
 let _resolveToFalse = PromiseWrapper.resolve(false);
@@ -62,7 +66,8 @@ export class Router {
   private _subject: EventEmitter = new EventEmitter();
 
 
-  constructor(public registry: RouteRegistry, public parent: Router, public hostComponent: any) {}
+  constructor(public registry: RouteRegistry, public parent: Router, public hostComponent: any,
+              private _injector: Injector) {}
 
 
   /**
@@ -70,7 +75,9 @@ export class Router {
    * component.
    */
   childRouter(hostComponent: any): Router {
-    return this._childRouter = new ChildRouter(this, hostComponent);
+    // TODO: child router should not get its parents injector– it should get it from the
+    // RouterOutlet
+    return this._childRouter = new ChildRouter(this, hostComponent, this._injector);
   }
 
 
@@ -78,7 +85,9 @@ export class Router {
    * Constructs a child router. You probably don't need to use this unless you're writing a reusable
    * component.
    */
-  auxRouter(hostComponent: any): Router { return new ChildRouter(this, hostComponent); }
+  auxRouter(hostComponent: any): Router {
+    return new ChildRouter(this, hostComponent, this._injector);
+  }
 
   /**
    * Register an outlet to notified of primary route changes.
@@ -280,8 +289,45 @@ export class Router {
   }
 
   private _canActivate(nextInstruction: Instruction): Promise<boolean> {
-    return canActivateOne(nextInstruction, this._currentInstruction);
+    return this.canActivateOne(nextInstruction, this._currentInstruction);
   }
+
+  private canActivateOne(nextInstruction: Instruction,
+                         prevInstruction: Instruction): Promise<boolean> {
+    var next = _resolveToTrue;
+    if (isPresent(nextInstruction.child)) {
+      next = this.canActivateOne(nextInstruction.child,
+                                 isPresent(prevInstruction) ? prevInstruction.child : null);
+    }
+    return next.then((result) => {
+      if (result == false) {
+        return false;
+      }
+      if (nextInstruction.component.reuse) {
+        return true;
+      }
+      var hook = getCanActivateHook(nextInstruction.component.componentType);
+      if (isPresent(hook)) {
+        var injector = this._injector.resolveAndCreateChild([
+          provide(PreviousComponent,
+                  {useValue: isPresent(prevInstruction) ? prevInstruction.component : null}),
+          provide(NextComponent, {useValue: nextInstruction.component})
+        ]);
+
+        var paramData = reflector.parameters(hook);
+
+        console.log(paramData);
+
+        var params = paramData.map((tok) => injector.get(tok));
+
+        console.log(params);
+
+        return hook.apply(null, params);
+      }
+      return true;
+    });
+  }
+
 
   private _canDeactivate(instruction: Instruction): Promise<boolean> {
     if (isBlank(this._outlet)) {
@@ -480,8 +526,9 @@ export class RootRouter extends Router {
   _location: Location;
   _locationSub: Object;
 
-  constructor(registry: RouteRegistry, location: Location, primaryComponent: Type) {
-    super(registry, null, primaryComponent);
+  constructor(registry: RouteRegistry, location: Location, primaryComponent: Type,
+              injector: Injector) {
+    super(registry, null, primaryComponent, injector);
     this._location = location;
     this._locationSub = this._location.subscribe(
         (change) => this.navigateByUrl(change['url'], isPresent(change['pop'])));
@@ -511,8 +558,8 @@ export class RootRouter extends Router {
 }
 
 class ChildRouter extends Router {
-  constructor(parent: Router, hostComponent) {
-    super(parent.registry, parent, hostComponent);
+  constructor(parent: Router, hostComponent, injector: Injector) {
+    super(parent.registry, parent, hostComponent, injector);
     this.parent = parent;
   }
 
@@ -542,27 +589,4 @@ function splitAndFlattenLinkParams(linkParams: any[]): any[] {
     accumulation.push(item);
     return accumulation;
   }, []);
-}
-
-function canActivateOne(nextInstruction: Instruction, prevInstruction: Instruction):
-    Promise<boolean> {
-  var next = _resolveToTrue;
-  if (isPresent(nextInstruction.child)) {
-    next = canActivateOne(nextInstruction.child,
-                          isPresent(prevInstruction) ? prevInstruction.child : null);
-  }
-  return next.then((result) => {
-    if (result == false) {
-      return false;
-    }
-    if (nextInstruction.component.reuse) {
-      return true;
-    }
-    var hook = getCanActivateHook(nextInstruction.component.componentType);
-    if (isPresent(hook)) {
-      return hook(nextInstruction.component,
-                  isPresent(prevInstruction) ? prevInstruction.component : null);
-    }
-    return true;
-  });
 }
