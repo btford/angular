@@ -1,7 +1,7 @@
 import {
   AsyncTestCompleter,
   beforeEach,
-  beforeEachBindings,
+  beforeEachProviders,
   ddescribe,
   describe,
   expect,
@@ -38,44 +38,39 @@ import {ApplicationRef} from 'angular2/src/core/application_ref';
 import {MockApplicationRef} from 'angular2/src/mock/mock_application_ref';
 
 export function main() {
-  describe('router injectables', () => {
-    beforeEachBindings(() => {
-      return [
-        ROUTER_PROVIDERS,
-        provide(LocationStrategy, {useClass: MockLocationStrategy}),
-        provide(ApplicationRef, {useClass: MockApplicationRef})
-      ];
-    });
+  describe('router bootstrap', () => {
+    beforeEachProviders(() => [
+      ROUTER_PROVIDERS,
+      provide(LocationStrategy, {useClass: MockLocationStrategy}),
+      provide(ApplicationRef, {useClass: MockApplicationRef})
+    ]);
 
     // do not refactor out the `bootstrap` functionality. We still want to
     // keep this test around so we can ensure that bootstrapping a router works
-    describe('bootstrap functionality', () => {
-      it('should bootstrap a simple app', inject([AsyncTestCompleter], (async) => {
-           var fakeDoc = DOM.createHtmlDocument();
-           var el = DOM.createElement('app-cmp', fakeDoc);
-           DOM.appendChild(fakeDoc.body, el);
+    it('should bootstrap a simple app', inject([AsyncTestCompleter], (async) => {
+         var fakeDoc = DOM.createHtmlDocument();
+         var el = DOM.createElement('app-cmp', fakeDoc);
+         DOM.appendChild(fakeDoc.body, el);
 
-           bootstrap(AppCmp,
-                     [
-                       ROUTER_PROVIDERS,
-                       provide(ROUTER_PRIMARY_COMPONENT, {useValue: AppCmp}),
-                       provide(LocationStrategy, {useClass: MockLocationStrategy}),
-                       provide(DOCUMENT, {useValue: fakeDoc})
-                     ])
-               .then((applicationRef) => {
-                 var router = applicationRef.hostComponent.router;
-                 router.subscribe((_) => {
-                   expect(el).toHaveText('outer { hello }');
-                   expect(applicationRef.hostComponent.location.path()).toEqual('');
-                   async.done();
-                 });
+         bootstrap(AppCmp,
+                   [
+                     ROUTER_PROVIDERS,
+                     provide(ROUTER_PRIMARY_COMPONENT, {useValue: AppCmp}),
+                     provide(LocationStrategy, {useClass: MockLocationStrategy}),
+                     provide(DOCUMENT, {useValue: fakeDoc})
+                   ])
+             .then((applicationRef) => {
+               var router = applicationRef.hostComponent.router;
+               router.subscribe((_) => {
+                 expect(el).toHaveText('outer { hello }');
+                 expect(applicationRef.hostComponent.location.path()).toEqual('');
+                 async.done();
                });
-         }));
-    });
+             });
+       }));
 
     describe('broken app', () => {
-      beforeEachBindings(
-          () => { return [provide(ROUTER_PRIMARY_COMPONENT, {useValue: BrokenAppCmp})]; });
+      beforeEachProviders(() => [provide(ROUTER_PRIMARY_COMPONENT, {useValue: BrokenAppCmp})]);
 
       it('should rethrow exceptions from component constructors',
          inject([AsyncTestCompleter, TestComponentBuilder], (async, tcb: TestComponentBuilder) => {
@@ -91,8 +86,7 @@ export function main() {
     });
 
     describe('back button app', () => {
-      beforeEachBindings(
-          () => { return [provide(ROUTER_PRIMARY_COMPONENT, {useValue: HierarchyAppCmp})]; });
+      beforeEachProviders(() => [provide(ROUTER_PRIMARY_COMPONENT, {useValue: HierarchyAppCmp})]);
 
       it('should change the url without pushing a new history state for back navigations',
          inject([AsyncTestCompleter, TestComponentBuilder], (async, tcb: TestComponentBuilder) => {
@@ -102,40 +96,39 @@ export function main() {
                  var router = fixture.debugElement.componentInstance.router;
                  var position = 0;
                  var flipped = false;
-                 var history =
-                     [
-                       ['/parent/child', 'root { parent { hello } }', '/super-parent/child'],
-                       ['/super-parent/child', 'root { super-parent { hello2 } }', '/parent/child'],
-                       ['/parent/child', 'root { parent { hello } }', false]
-                     ]
+                 var history = [
+                   ['/parent/child', 'root { parent { hello } }', '/super-parent/child'],
+                   ['/super-parent/child', 'root { super-parent { hello2 } }', '/parent/child'],
+                   ['/parent/child', 'root { parent { hello } }', false]
+                 ];
 
-                     router.subscribe((_) => {
-                       var location = fixture.debugElement.componentInstance.location;
-                       var element = fixture.debugElement.nativeElement;
-                       var path = location.path();
+                 router.subscribe((_) => {
+                   var location = fixture.debugElement.componentInstance.location;
+                   var element = fixture.debugElement.nativeElement;
+                   var path = location.path();
 
-                       var entry = history[position];
+                   var entry = history[position];
 
-                       expect(path).toEqual(entry[0]);
-                       expect(element).toHaveText(entry[1]);
+                   expect(path).toEqual(entry[0]);
+                   expect(element).toHaveText(entry[1]);
 
-                       var nextUrl = entry[2];
-                       if (nextUrl == false) {
-                         flipped = true;
-                       }
+                   var nextUrl = entry[2];
+                   if (nextUrl == false) {
+                     flipped = true;
+                   }
 
-                       if (flipped && position == 0) {
-                         async.done();
-                         return;
-                       }
+                   if (flipped && position == 0) {
+                     async.done();
+                     return;
+                   }
 
-                       position = position + (flipped ? -1 : 1);
-                       if (flipped) {
-                         location.back();
-                       } else {
-                         router.navigateByUrl(nextUrl);
-                       }
-                     });
+                   position = position + (flipped ? -1 : 1);
+                   if (flipped) {
+                     location.back();
+                   } else {
+                     router.navigateByUrl(nextUrl);
+                   }
+                 });
 
                  router.navigateByUrl(history[0][0]);
                });
@@ -143,7 +136,7 @@ export function main() {
     });
 
     describe('hierarchical app', () => {
-      beforeEachBindings(
+      beforeEachProviders(
           () => { return [provide(ROUTER_PRIMARY_COMPONENT, {useValue: HierarchyAppCmp})]; });
 
       it('should bootstrap an app with a hierarchy',
@@ -165,7 +158,7 @@ export function main() {
 
       // TODO(btford): mock out level lower than LocationStrategy once that level exists
       xdescribe('custom app base ref', () => {
-        beforeEachBindings(() => { return [provide(APP_BASE_HREF, {useValue: '/my/app'})]; });
+        beforeEachProviders(() => { return [provide(APP_BASE_HREF, {useValue: '/my/app'})]; });
         it('should bootstrap',
            inject([AsyncTestCompleter, TestComponentBuilder],
                   (async, tcb: TestComponentBuilder) => {
@@ -185,10 +178,10 @@ export function main() {
                   }));
       });
     });
-    // TODO: add a test in which the child component has bindings
+
 
     describe('querystring params app', () => {
-      beforeEachBindings(
+      beforeEachProviders(
           () => { return [provide(ROUTER_PRIMARY_COMPONENT, {useValue: QueryStringAppCmp})]; });
 
       it('should recognize and return querystring params with the injected RouteParams',
@@ -215,37 +208,47 @@ export function main() {
 }
 
 
-@Component({selector: 'hello-cmp'})
-@View({template: 'hello'})
+@Component({selector: 'hello-cmp', template: 'hello'})
 class HelloCmp {
 }
 
-@Component({selector: 'hello2-cmp'})
-@View({template: 'hello2'})
+@Component({selector: 'hello2-cmp', template: 'hello2'})
 class Hello2Cmp {
 }
 
-@Component({selector: 'app-cmp'})
-@View({template: "outer { <router-outlet></router-outlet> }", directives: ROUTER_DIRECTIVES})
+@Component({
+  selector: 'app-cmp',
+  template: `outer { <router-outlet></router-outlet> }`,
+  directives: ROUTER_DIRECTIVES
+})
 @RouteConfig([new Route({path: '/', component: HelloCmp})])
 class AppCmp {
   constructor(public router: Router, public location: LocationStrategy) {}
 }
 
-@Component({selector: 'parent-cmp'})
-@View({template: `parent { <router-outlet></router-outlet> }`, directives: ROUTER_DIRECTIVES})
+@Component({
+  selector: 'parent-cmp',
+  template: `parent { <router-outlet></router-outlet> }`,
+  directives: ROUTER_DIRECTIVES
+})
 @RouteConfig([new Route({path: '/child', component: HelloCmp})])
 class ParentCmp {
 }
 
-@Component({selector: 'super-parent-cmp'})
-@View({template: `super-parent { <router-outlet></router-outlet> }`, directives: ROUTER_DIRECTIVES})
+@Component({
+  selector: 'super-parent-cmp',
+  template: `super-parent { <router-outlet></router-outlet> }`,
+  directives: ROUTER_DIRECTIVES
+})
 @RouteConfig([new Route({path: '/child', component: Hello2Cmp})])
 class SuperParentCmp {
 }
 
-@Component({selector: 'app-cmp'})
-@View({template: `root { <router-outlet></router-outlet> }`, directives: ROUTER_DIRECTIVES})
+@Component({
+  selector: 'app-cmp',
+  template: `root { <router-outlet></router-outlet> }`,
+  directives: ROUTER_DIRECTIVES
+})
 @RouteConfig([
   new Route({path: '/parent/...', component: ParentCmp}),
   new Route({path: '/super-parent/...', component: SuperParentCmp})
@@ -254,28 +257,32 @@ class HierarchyAppCmp {
   constructor(public router: Router, public location: LocationStrategy) {}
 }
 
-@Component({selector: 'qs-cmp'})
-@View({template: "qParam = {{q}}"})
+@Component({selector: 'qs-cmp', template: `qParam = {{q}}`})
 class QSCmp {
   q: string;
   constructor(params: RouteParams) { this.q = params.get('q'); }
 }
 
-@Component({selector: 'app-cmp'})
-@View({template: `<router-outlet></router-outlet>`, directives: ROUTER_DIRECTIVES})
+@Component({
+  selector: 'app-cmp',
+  template: `<router-outlet></router-outlet>`,
+  directives: ROUTER_DIRECTIVES
+})
 @RouteConfig([new Route({path: '/qs', component: QSCmp})])
 class QueryStringAppCmp {
   constructor(public router: Router, public location: LocationStrategy) {}
 }
 
-@Component({selector: 'oops-cmp'})
-@View({template: "oh no"})
+@Component({selector: 'oops-cmp', template: "oh no"})
 class BrokenCmp {
   constructor() { throw new BaseException('oops!'); }
 }
 
-@Component({selector: 'app-cmp'})
-@View({template: `outer { <router-outlet></router-outlet> }`, directives: ROUTER_DIRECTIVES})
+@Component({
+  selector: 'app-cmp',
+  template: `outer { <router-outlet></router-outlet> }`,
+  directives: ROUTER_DIRECTIVES
+})
 @RouteConfig([new Route({path: '/cause-error', component: BrokenCmp})])
 class BrokenAppCmp {
   constructor(public router: Router, public location: LocationStrategy) {}

@@ -8,7 +8,7 @@ import {
   expect,
   iit,
   inject,
-  beforeEachBindings,
+  beforeEachProviders,
   it,
   xit,
   TestComponentBuilder
@@ -27,24 +27,22 @@ import {
   RouterOutlet,
   Route,
   RouteParams,
-  Instruction,
   ComponentInstruction
 } from 'angular2/router';
 
 import {DOM} from 'angular2/src/core/dom/dom_adapter';
-import {ComponentInstruction_} from 'angular2/src/router/instruction';
-import {PathRecognizer} from 'angular2/src/router/path_recognizer';
+import {ResolvedInstruction} from 'angular2/src/router/instruction';
+import {RouteRecognizer} from 'angular2/src/router/route_recognizer';
 import {SyncRouteHandler} from 'angular2/src/router/sync_route_handler';
 
-let dummyPathRecognizer = new PathRecognizer('', new SyncRouteHandler(null));
 let dummyInstruction =
-    new Instruction(new ComponentInstruction_('detail', [], dummyPathRecognizer), null, {});
+    new ResolvedInstruction(new ComponentInstruction('detail', [], null, null, true, 0), null, {});
 
 export function main() {
   describe('router-link directive', function() {
     var tcb: TestComponentBuilder;
 
-    beforeEachBindings(() => [
+    beforeEachProviders(() => [
       provide(Location, {useValue: makeDummyLocation()}),
       provide(Router, {useValue: makeDummyRouter()})
     ]);

@@ -6,9 +6,6 @@ import {RouteRegistry} from './route_registry';
 import {
   ComponentInstruction,
   Instruction,
-  stringifyInstruction,
-  stringifyInstructionPath,
-  stringifyInstructionQuery
 } from './instruction';
 import {RouterOutlet} from './router_outlet';
 import {Location} from './location';
@@ -212,7 +209,7 @@ export class Router {
                 if (result) {
                   return this.commit(instruction, _skipLocationChange)
                       .then((_) => {
-                        this._emitNavigationFinish(stringifyInstruction(instruction));
+                        this._emitNavigationFinish(instruction.toRootUrl());
                         return true;
                       });
                 }
@@ -220,25 +217,20 @@ export class Router {
         });
   }
 
-  // TODO(btford): it'd be nice to remove this method as part of cleaning up the traversal logic
-  // Since refactoring `Router.generate` to return an instruction rather than a string, it's not
-  // guaranteed that the `componentType`s for the terminal async routes have been loaded by the time
-  // we begin navigation. The method below simply traverses instructions and resolves any components
-  // for which `componentType` is not present
   /** @internal */
   _settleInstruction(instruction: Instruction): Promise<any> {
-    var unsettledInstructions: Array<Promise<any>> = [];
-    if (isBlank(instruction.component.componentType)) {
-      unsettledInstructions.push(instruction.component.resolveComponentType().then(
-          (type: Type) => { this.registry.configFromComponent(type); }));
-    }
-    if (isPresent(instruction.child)) {
-      unsettledInstructions.push(this._settleInstruction(instruction.child));
-    }
-    StringMapWrapper.forEach(instruction.auxInstruction, (instruction, _) => {
-      unsettledInstructions.push(this._settleInstruction(instruction));
+    return instruction.resolveComponent().then((_) => {
+      var unsettledInstructions: Array<Promise<any>> = [];
+
+      if (isPresent(instruction.child)) {
+        unsettledInstructions.push(this._settleInstruction(instruction.child));
+      }
+
+      StringMapWrapper.forEach(instruction.auxInstruction, (instruction, _) => {
+        unsettledInstructions.push(this._settleInstruction(instruction));
+      });
+      return PromiseWrapper.all(unsettledInstructions);
     });
-    return PromiseWrapper.all(unsettledInstructions);
   }
 
   private _emitNavigationFinish(url): void { ObservableWrapper.callNext(this._subject, url); }
@@ -482,8 +474,8 @@ export class RootRouter extends Router {
   }
 
   commit(instruction: Instruction, _skipLocationChange: boolean = false): Promise<any> {
-    var emitPath = stringifyInstructionPath(instruction);
-    var emitQuery = stringifyInstructionQuery(instruction);
+    var emitPath = instruction.toUrlPath();
+    var emitQuery = instruction.toUrlQuery();
     if (emitPath.length > 0) {
       emitPath = '/' + emitPath;
     }
