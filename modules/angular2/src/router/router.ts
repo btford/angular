@@ -2,11 +2,13 @@ import {Promise, PromiseWrapper, EventEmitter, ObservableWrapper} from 'angular2
 import {Map, StringMapWrapper, MapWrapper, ListWrapper} from 'angular2/src/facade/collection';
 import {isBlank, isString, isPresent, Type, isArray} from 'angular2/src/facade/lang';
 import {BaseException, WrappedException} from 'angular2/src/facade/exceptions';
-import {Inject, Injectable} from 'angular2/core';
+import {Inject, Injectable, OpaqueToken, Injector, provide} from 'angular2/core';
 
 import {RouteRegistry, ROUTER_PRIMARY_COMPONENT} from './route_registry';
 import {
   ComponentInstruction,
+  NextComponentInstruction,
+  PrevComponentInstruction,
   Instruction,
 } from './instruction';
 import {RouterOutlet} from './router_outlet';
@@ -49,7 +51,7 @@ export class Router {
   private _subject: EventEmitter<any> = new EventEmitter();
 
 
-  constructor(public registry: RouteRegistry, public parent: Router, public hostComponent: any) {}
+  constructor(public registry: RouteRegistry, public parent: Router, public hostComponent: any, private _injector: Injector) {}
 
 
   /**
@@ -57,7 +59,7 @@ export class Router {
    * component.
    */
   childRouter(hostComponent: any): Router {
-    return this._childRouter = new ChildRouter(this, hostComponent);
+    return this._childRouter = new ChildRouter(this, hostComponent, this._injector);
   }
 
 
@@ -65,7 +67,7 @@ export class Router {
    * Constructs a child router. You probably don't need to use this unless you're writing a reusable
    * component.
    */
-  auxRouter(hostComponent: any): Router { return new ChildRouter(this, hostComponent); }
+  auxRouter(hostComponent: any): Router { return new ChildRouter(this, hostComponent, this._injector); }
 
   /**
    * Register an outlet to notified of primary route changes.
@@ -266,7 +268,7 @@ export class Router {
   }
 
   private _canActivate(nextInstruction: Instruction): Promise<boolean> {
-    return canActivateOne(nextInstruction, this._currentInstruction);
+    return canActivateOne(nextInstruction, this._currentInstruction, this._injector);
   }
 
   private _routerCanDeactivate(instruction: Instruction): Promise<boolean> {
@@ -423,8 +425,8 @@ export class RootRouter extends Router {
   _locationSub: Object;
 
   constructor(registry: RouteRegistry, location: Location,
-              @Inject(ROUTER_PRIMARY_COMPONENT) primaryComponent: Type) {
-    super(registry, null, primaryComponent);
+              @Inject(ROUTER_PRIMARY_COMPONENT) primaryComponent: Type, injector: Injector) {
+    super(registry, null, primaryComponent, injector);
     this._location = location;
     this._locationSub = this._location.subscribe(
         (change) => this.navigateByUrl(change['url'], isPresent(change['pop'])));
@@ -454,8 +456,8 @@ export class RootRouter extends Router {
 }
 
 class ChildRouter extends Router {
-  constructor(parent: Router, hostComponent) {
-    super(parent.registry, parent, hostComponent);
+  constructor(parent: Router, hostComponent, injector: Injector) {
+    super(parent.registry, parent, hostComponent, injector);
     this.parent = parent;
   }
 
@@ -474,11 +476,11 @@ class ChildRouter extends Router {
 
 
 function canActivateOne(nextInstruction: Instruction,
-                        prevInstruction: Instruction): Promise<boolean> {
+                        prevInstruction: Instruction, injector: Injector): Promise<boolean> {
   var next = _resolveToTrue;
   if (isPresent(nextInstruction.child)) {
     next = canActivateOne(nextInstruction.child,
-                          isPresent(prevInstruction) ? prevInstruction.child : null);
+                          isPresent(prevInstruction) ? prevInstruction.child : null, injector);
   }
   return next.then((result) => {
     if (result == false) {
@@ -489,8 +491,21 @@ function canActivateOne(nextInstruction: Instruction,
     }
     var hook = getCanActivateHook(nextInstruction.component.componentType);
     if (isPresent(hook)) {
-      return hook(nextInstruction.component,
-                  isPresent(prevInstruction) ? prevInstruction.component : null);
+
+      var token = new OpaqueToken('CanActivate Hook');
+      var resolved = Injector.resolve([
+        provide(NextComponentInstruction, {useValue: nextInstruction.component}),
+        provide(PrevComponentInstruction, {useValue: isPresent(prevInstruction) ? prevInstruction.component : null}),
+        provide(token, {
+          useFactory: hook,
+          deps: (<any>global).Reflect.getMetadata('design:paramtypes', nextInstruction.component.componentType, 'routerCanActivate')
+        })
+      ]);
+      var child = injector.createChildFromResolved(resolved);
+      return child.get(token);
+
+      //return hook(nextInstruction.component,
+      //            isPresent(prevInstruction) ? prevInstruction.component : null);
     }
     return true;
   });

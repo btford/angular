@@ -29,7 +29,7 @@ import {RouterOutlet} from './src/router/router_outlet';
 import {RouterLink} from './src/router/router_link';
 import {RouteRegistry, ROUTER_PRIMARY_COMPONENT} from './src/router/route_registry';
 import {Location} from './src/router/location';
-import {ApplicationRef, provide, OpaqueToken, Provider} from 'angular2/core';
+import {ApplicationRef, provide, OpaqueToken, Provider, Injector} from 'angular2/core';
 import {CONST_EXPR} from './src/facade/lang';
 import {BaseException} from 'angular2/src/facade/exceptions';
 
@@ -90,7 +90,7 @@ export const ROUTER_PROVIDERS: any[] = CONST_EXPR([
       Router,
       {
         useFactory: routerFactory,
-        deps: CONST_EXPR([RouteRegistry, Location, ROUTER_PRIMARY_COMPONENT, ApplicationRef])
+        deps: CONST_EXPR([RouteRegistry, Location, ROUTER_PRIMARY_COMPONENT, ApplicationRef, Injector])
       })),
   CONST_EXPR(new Provider(
       ROUTER_PRIMARY_COMPONENT,
@@ -102,8 +102,8 @@ export const ROUTER_PROVIDERS: any[] = CONST_EXPR([
  */
 export const ROUTER_BINDINGS = ROUTER_PROVIDERS;
 
-function routerFactory(registry, location, primaryComponent, appRef) {
-  var rootRouter = new RootRouter(registry, location, primaryComponent);
+function routerFactory(registry, location, primaryComponent, appRef, injector) {
+  var rootRouter = new RootRouter(registry, location, primaryComponent, injector);
   appRef.registerDisposeListener(() => rootRouter.dispose());
   return rootRouter;
 }

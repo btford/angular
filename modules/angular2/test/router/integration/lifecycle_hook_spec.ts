@@ -15,7 +15,7 @@ import {
   xit
 } from 'angular2/testing_internal';
 
-import {provide, Component, Injector, Inject, View} from 'angular2/core';
+import {provide, Component, Injector, Inject, Injectable, View, Host, Self} from 'angular2/core';
 import {isPresent} from 'angular2/src/facade/lang';
 import {
   Promise,
@@ -42,8 +42,15 @@ import {
   CanReuse
 } from 'angular2/src/router/interfaces';
 import {CanActivate} from 'angular2/src/router/lifecycle_annotations';
-import {ComponentInstruction} from 'angular2/src/router/instruction';
+import {ComponentInstruction, NextComponentInstruction, PrevComponentInstruction} from 'angular2/src/router/instruction';
 
+import {makeParamDecorator, makeDecorator} from 'angular2/src/core/util/decorators';
+//import {Host} from 'angular2/src/core/di/metadata';
+//
+//class RouterThing {
+//  constructor(public value) {}
+//}
+//var RouterCanActivateDecorator = makeDecorator(SelfMetadata);
 
 import {TEST_ROUTER_PROVIDERS, RootCmp, compile} from './util';
 
@@ -59,7 +66,7 @@ export function main() {
     var fixture: ComponentFixture;
     var rtr;
 
-    beforeEachProviders(() => TEST_ROUTER_PROVIDERS);
+    beforeEachProviders(() => [TEST_ROUTER_PROVIDERS, PersonService]);
 
     beforeEach(inject([TestComponentBuilder, Router], (tcBuilder, router) => {
       tcb = tcBuilder;
@@ -345,36 +352,20 @@ export function main() {
              });
        }));
 
-    it('should not run reuse hooks when not reusing', inject([AsyncTestCompleter], (async) => {
-         compile(tcb)
-             .then((_) => rtr.config([new Route({path: '/...', component: LifecycleCmp})]))
-             .then((_) => rtr.navigateByUrl('/reuse-hooks/1'))
-             .then((_) => {
-               expect(log).toEqual([
-                 'routerCanActivate: null -> /reuse-hooks/1',
-                 'routerOnActivate: null -> /reuse-hooks/1'
-               ]);
 
-               ObservableWrapper.subscribe<string>(eventBus, (ev) => {
-                 if (ev.startsWith('routerCanReuse')) {
-                   completer.resolve(false);
-                 }
-               });
+    iit('should pass along providers from canActivate', inject([AsyncTestCompleter], (async) => {
+      compile(tcb)
+        .then((rtc) => {fixture = rtc})
+        .then((_) => rtr.config([new Route({path: '/user/:name', component: CanActivateModelCmp})]))
+        .then((_) => rtr.navigateByUrl('/user/alex'))
+        .then((_) => {
+          fixture.detectChanges();
+          expect(fixture.debugElement.nativeElement).toHaveText('hello alex');
+          async.done();
+        });
+    }));
 
-               log = [];
-               return rtr.navigateByUrl('/reuse-hooks/2');
-             })
-             .then((_) => {
-               expect(log).toEqual([
-                 'routerCanReuse: /reuse-hooks/1 -> /reuse-hooks/2',
-                 'routerCanActivate: /reuse-hooks/1 -> /reuse-hooks/2',
-                 'routerCanDeactivate: /reuse-hooks/1 -> /reuse-hooks/2',
-                 'routerOnDeactivate: /reuse-hooks/1 -> /reuse-hooks/2',
-                 'routerOnActivate: /reuse-hooks/1 -> /reuse-hooks/2'
-               ]);
-               async.done();
-             });
-       }));
+    //CanActivateModelCmp
   });
 }
 
@@ -606,4 +597,39 @@ class ReuseHooksCmp implements OnActivate, OnReuse, OnDeactivate, CanReuse, CanD
   new Route({path: '/reuse-hooks/:number', component: ReuseHooksCmp})
 ])
 class LifecycleCmp {
+}
+
+
+class Person {
+  constructor(public name: string) {}
+}
+
+@Injectable()
+class PersonService {
+  getPerson(name): Person {
+    return new Person(name);
+  }
+}
+
+@Component({
+  selector: 'can-activate-model-cmp',
+  template: `hello {{person.name}}`,
+})
+@CanActivate(CanActivateModelCmp.routerCanActivate)
+class CanActivateModelCmp {
+  constructor(public person: Person) {
+    console.log(person);
+  }
+
+  @Host()
+  static routerCanActivate(nextInstruction: NextComponentInstruction, personService: PersonService): boolean {
+
+    console.log('hi');
+    // TODO: ...
+    var person = personService.getPerson(nextInstruction.params['name']);
+    nextInstruction.addProviders([provide(Person, {useValue: person })]);
+
+    // TODO: update return type
+    return true;
+  }
 }

@@ -1,6 +1,7 @@
 import {Map, MapWrapper, StringMapWrapper, ListWrapper} from 'angular2/src/facade/collection';
 import {isPresent, isBlank, normalizeBlank, Type, CONST_EXPR} from 'angular2/src/facade/lang';
 import {Promise, PromiseWrapper} from 'angular2/src/facade/async';
+import {Provider} from 'angular2/core';
 
 
 /**
@@ -300,10 +301,18 @@ export class RedirectInstruction extends ResolvedInstruction {
 export class ComponentInstruction {
   reuse: boolean = false;
   public routeData: RouteData;
+  public providers: Provider[] = [];
 
   constructor(public urlPath: string, public urlParams: string[], data: RouteData,
               public componentType, public terminal: boolean, public specificity: number,
               public params: {[key: string]: any} = null) {
     this.routeData = isPresent(data) ? data : BLANK_ROUTE_DATA;
   }
+
+  addProviders(providers: Provider[]): void {
+    this.providers = this.providers.concat(providers);
+  }
 }
+
+export class NextComponentInstruction extends ComponentInstruction {}
+export class PrevComponentInstruction extends ComponentInstruction {}

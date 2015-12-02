@@ -57,11 +57,16 @@ export class RouterOutlet {
     var componentType = nextInstruction.componentType;
     var childRouter = this._parentRouter.childRouter(componentType);
 
-    var providers = Injector.resolve([
+    console.log(nextInstruction.providers);
+
+    var providers = Injector.resolve(nextInstruction.providers.concat([
       provide(RouteData, {useValue: nextInstruction.routeData}),
       provide(RouteParams, {useValue: new RouteParams(nextInstruction.params)}),
       provide(routerMod.Router, {useValue: childRouter})
-    ]);
+    ]));
+
+    console.log(componentType);
+
     return this._loader.loadNextToLocation(componentType, this._elementRef, providers)
         .then((componentRef) => {
           this._componentRef = componentRef;
